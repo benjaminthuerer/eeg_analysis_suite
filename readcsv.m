@@ -1,9 +1,9 @@
 function [param] = readcsv(csvname)
 %READCSV This function reads a csvfile 
 %and puts its data into a struct, dynamically
-%
+% 'C:\Users\Promotion\Matlab_Scripts\Consciousness\EEG_processing\UiO_eeganalysis\csvs\'
 %%Read file
-fileName=['C:\Users\Promotion\Matlab_Scripts\Consciousness\EEG_processing\UiO_eeganalysis\csvs\' csvname '.csv']; %Specifies the csvs folder as storage
+fileName=[csvname '.csv']; %Specifies the csvs folder as storage
 fid = fopen(fileName,'r');   
   lineArray = cell(200,1);     % Preallocate a cell matrix
   lineIndex = 1;               % Iterator, cause while loops are quicker
@@ -25,17 +25,18 @@ for iLine = 1:lineIndex-1
       lineData{end+1} = '';                     
     end
     lineArray(iLine,1:numel(lineData)) = lineData;  % Overwrite line data
-  end
+end
 la=lineArray;
 
 %%Create a struct out of read data
 for i=2:length(la(:,1))    % 1st row is sacred, and there shouldn't be more than 200 csv lines. 
      for x=2:length(la(1,:)) % 1st col is sacred, and there shouldn't be more than 50 columns (48 participants). Can be increased later
-         if isempty(la{1,x})==0 && isempty(la{2,x})==0 && isempty(la{i,1}) == 0 && isempty(la{i,x}) == 0 % If col and row header, and cell, is not empty
+         if isempty(la{1,x})==0 && isempty(la{2,x})==0 && isempty(la{i,2}) == 0 && isempty(la{i,x}) == 0 % If col and row header, and cell, is not empty
             param.(la{1,x}).(la{2,x}).(la{i,1})=la{i,x}; % And now i realise this is wrong and should crash. Old version.
          end
      end
 end
   
+
 end
 
