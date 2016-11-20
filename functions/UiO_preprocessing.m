@@ -23,33 +23,44 @@
 % 8: rereference to the average
 % 9: remove line noise (cleanline)
 % 
-%
 % by questions: benjamin.thuerer@kit.edu
 % 
-function [EEG,locFile] = UiO_preprocessing(data_struct,~,EEG,locFile)
+function [EEG,locFile] = UiO_preprocessing(data_struct,subj_name,EEG,locFile)
 
 if nargin < 1
     error('provide at least data_struct. See help UiO_preprocessing')
 end
 
+exist data_struct.load_data;
+
+if ans == 0
+    data_struct.load_data = '0';
+end
+
 % check if EEG structure is provided. If not, load raw data
 if isempty(EEG)
-    % check if the filepath is seperated by / or \ and and seperate file-path
-    % from file-name
-    if isempty(strfind(data_struct.vhdrsource,'\'))
-        char_idx = strfind(data_struct.vhdrsource,'/'); 
-    else
-        char_idx = strfind(data_struct.vhdrsource,'\');
-    end
+    if str2double(data_struct.load_data) == 0
+        
+        % check if the filepath is seperated by / or \ and and seperate file-path
+        % from file-name
+        if isempty(strfind(data_struct.vhdrsource,'\'))
+            char_idx = strfind(data_struct.vhdrsource,'/'); 
+        else
+            char_idx = strfind(data_struct.vhdrsource,'\');
+        end
 
-    data_name = data_struct.vhdrsource(char_idx(end)+1:end);
-    data_path = data_struct.vhdrsource(1:char_idx(end));
+        data_name = data_struct.vhdrsource(char_idx(end)+1:end);
+        data_path = data_struct.vhdrsource(1:char_idx(end));
 
-    % check if header ending is provided, otherwise add .vhdr to the file-name
-    if strcmp(data_name(end-4:end),'.vhdr')
-        EEG = pop_loadbv(data_path, data_name, [], []);
+        % check if header ending is provided, otherwise add .vhdr to the file-name
+        if strcmp(data_name(end-4:end),'.vhdr')
+            EEG = pop_loadbv(data_path, data_name, [], []);
+        else
+            EEG = pop_loadbv(data_path, [data_name '.vhdr'], [], []);
+        end
+    
     else
-        EEG = pop_loadbv(data_path, [data_name '.vhdr'], [], []);
+        [EEG,locFile] = UiO_load_data(data_struct,subj_name,[],'specific_data');
     end
 end
   
@@ -80,7 +91,7 @@ if ~isempty(LpassF)
 end
 
 % read channel locations according to Label in EEG.chanlocs
-EEG = pop_chanedit(EEG, 'lookup','.\elec\standard_1005.elc');
+EEG = pop_chanedit(EEG, 'lookup','standard_1005.elc');
 chLocs = EEG.chanlocs;
 
 % check if cleaning and channel rejection should be done automatically
@@ -243,11 +254,17 @@ end
 % correct data for line noise without notch-filter
 EEG = pop_cleanline(EEG, 'bandwidth',2,'chanlist',[1:EEG.trials] ,'computepower',0,'linefreqs',[LNFreq LNFreq*2],'normSpectrum',0,'p',0.01,'pad',2,'plotfigures' ...
     ,0,'scanforlines',1,'sigtype','Channels','tau',100,'verb',1,'winsize',4,'winstep',1);
-   
+ 
+% loc file entry
 locFile{end+1} = {'preprocessed',['preprocessed with (sampling rate; ' ...
     'highpassfilter; lowpassfilter; burst criterion; line noise correction: ' ...
     num2str(Nsrate) '; ' num2str(HpassF) '; ' num2str(LpassF) '; ' ...
     num2str(BurstC) '; ' num2str(LNFreq)]};
+
+if str2double(data_struct.plot_always)==1
+    UiO_plots(data_struct,subj_name,EEG,locFile);
+end
+
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

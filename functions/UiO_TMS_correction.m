@@ -1,4 +1,4 @@
-% EEG-data processing for EEG-TMS combined
+    % EEG-data processing for EEG-TMS combined
 % Consciousness Study Oslo
 % 
 % [EEG,locFile] = UiO_TMS_correction(data_struct,~,~,locFile)
@@ -17,29 +17,45 @@
 %
 % by questions: benjamin.thuerer@kit.edu
 % 
-function [EEG,locFile] = UiO_TMS_correction(data_struct,~,~,locFile)
+function [EEG,locFile] = UiO_TMS_correction(data_struct,subj_name,EEG,locFile)
 
 if nargin < 1
     error('provide at least data_struct. See help UiO_TMS_correction')
 end
 
-% check if the filepath is seperated by / or \ and and seperate file-path
-% from file-name
-if isempty(strfind(data_struct.vhdrsource,'\'))
-    char_idx = strfind(data_struct.vhdrsource,'/'); 
-else
-    char_idx = strfind(data_struct.vhdrsource,'\');
+exist data_struct.load_data;
+
+if ans == 0
+    data_struct.load_data = '0';
 end
 
-data_name = data_struct.vhdrsource(char_idx(end)+1:end);
-data_path = data_struct.vhdrsource(1:char_idx(end));
+% check if EEG structure is provided. If not, load raw data
+if isempty(EEG)
+    if str2double(data_struct.load_data) == 0
+        
+        % check if the filepath is seperated by / or \ and and seperate file-path
+        % from file-name
+        if isempty(strfind(data_struct.vhdrsource,'\'))
+            char_idx = strfind(data_struct.vhdrsource,'/'); 
+        else
+            char_idx = strfind(data_struct.vhdrsource,'\');
+        end
 
-% check if header ending is provided, otherwise add .vhdr to the file-name
-if strcmp(data_name(end-4:end),'.vhdr')
-    EEG = pop_loadbv(data_path, data_name, [], []);
-else
-    EEG = pop_loadbv(data_path, [data_name '.vhdr'], [], []);
+        data_name = data_struct.vhdrsource(char_idx(end)+1:end);
+        data_path = data_struct.vhdrsource(1:char_idx(end));
+
+        % check if header ending is provided, otherwise add .vhdr to the file-name
+        if strcmp(data_name(end-4:end),'.vhdr')
+            EEG = pop_loadbv(data_path, data_name, [], []);
+        else
+            EEG = pop_loadbv(data_path, [data_name '.vhdr'], [], []);
+        end
+    
+    else
+        [EEG,locFile] = UiO_load_data(data_struct,subj_name,[],'specific_data');
+    end
 end
+
     
 EEG.data = bsxfun(@minus,EEG.data,mean(EEG.data,2));
 
@@ -81,6 +97,10 @@ if str2double(data_struct.tms_interpolation) == 1 % 1: automatic
         EEG.data(:,getLatency{ISi}+(CIdx(1,ISi)-5000):getLatency{ISi}+(CIdx(2,ISi)-5000)) = repmat(mean(EEG.data(:,getLatency{ISi}-(0.05/Tsample): ...
             getLatency{ISi}-(0.01/Tsample)),2),[1 length(accS)]);
     end
+    
+    % store mean tms cut for locFile
+    tms_cut_start = mean(CIdx(1,:),2);
+    tms_cut_end = mean(CIdx(2,:),2);
 elseif str2double(data_struct.tms_interpolation) == 2 % 2: manually by visual inspection
     % epoch data
     EEGN = pop_epoch( EEG, {  'R128'  }, [-1 0.1], 'newname', ' resampled epochs', 'epochinfo', 'yes');
@@ -98,12 +118,12 @@ elseif str2double(data_struct.tms_interpolation) == 2 % 2: manually by visual in
     plot(EEGN.times(idx(1):idx(2)),GAMean(idx(1):idx(2)));
     axis([-5 15 -50 50])
     title('Grand Average: please click where the TMS-artifact starts (1. click) and ends (2. click)')
-    [x_ipt,~] =ginput(2);
+    [x_I,~] =ginput(2);
     close(h)
     
     % use the x-coordinates of the mous clicks and find their indices
-    [~,x_ipt(1)] = min(abs(EEGN.times-(x_ipt(1))));
-    [~,x_ipt(2)] = min(abs(EEGN.times-(x_ipt(2))));
+    [~,x_ipt(1)] = min(abs(EEGN.times-(x_I(1))));
+    [~,x_ipt(2)] = min(abs(EEGN.times-(x_I(2))));
     
     % find event/trial indices of the TMS-stimuli
     getStimuli = strcmp({EEG.event.type},'boundary');
@@ -118,6 +138,10 @@ elseif str2double(data_struct.tms_interpolation) == 2 % 2: manually by visual in
         EEG.data(:,getLatency{ISi}+(x_ipt(1)-5000):getLatency{ISi}+(x_ipt(2)-5000)) = repmat(mean(EEG.data(:,getLatency{ISi}-(0.05/Tsample): ...
             getLatency{ISi}-(0.01/Tsample)),2),[1 length(accS)]);
     end
+    
+    % store mean tms cut for locFile
+    tms_cut_start = x_I(1);
+    tms_cut_end = x_I(2);
 elseif str2double(data_struct.tms_interpolation) == 3 % 3: manually by csv-file
     % transform csv time indices
     idx(1) = str2double(data_struct.interpolate_lower_tms)/EEG.srate;
@@ -136,9 +160,19 @@ elseif str2double(data_struct.tms_interpolation) == 3 % 3: manually by csv-file
         EEG.data(:,getLatency{ISi}+(idx(1)/Tsample):getLatency{ISi}+(idx(2)/Tsample)) = repmat(mean(EEG.data(:,getLatency{ISi}-(0.05/Tsample): ...
             getLatency{ISi}-(0.01/Tsample)),2),[1 length(accS)]);
     end
+    
+    % store mean tms cut for locFile
+    tms_cut_start = data_struct.interpolate_lower_tms;
+    tms_cut_end = data_struct.interpolate_higher_tms;
 else
     error('TMS interpolation correction not defined')
 end
    
-locFile{end+1} = {'after_tms','TMS_artifact_correctet'};
+locFile{end+1} = {'after_tms',['EEG data is now TMS-artifact correctet using ' ...
+    data_struct.tms_interpolation ' (1=automatic, 2=by visual inspection, 3=manually by csvfile).' ...
+    ' Artifact is cutted between ' tms_cut_start ' and ' tms_cut_start ' ms.']};
+
+if str2double(data_struct.plot_always)==1
+    UiO_plots(data_struct,subj_name,EEG,locFile);
+end
 end

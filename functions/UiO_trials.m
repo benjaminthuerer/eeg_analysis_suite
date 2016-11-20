@@ -1,32 +1,39 @@
 % EEG-data processing for EEG-TMS combined
 % Consciousness Study Oslo
 % 
-% Processing steps (according to Makotos preprocessing pipeline):
-% 1: load subject data
-% 3: high-pass filter (1hz)
-% 4: downsample (1000hz)
-% 5: import channel info
-% 6: remove bad channels + subspace reconstruction (clean_rawdata)
-% 7: interpolate bad channels
-% 8: rereference to the average (add the reference channel?)
-% 9: remove line noise (cleanline)
-% 10: epoch data (-1.5 to 1.5)
-% 11: cut TMS artifacts and interpolate by mean of baseline
-% 12: rejecting bad epoches (excluding EOG channels)
-% 13: centering + compression (subtracting the mean and use PCA)
-% 14: Data with 99% of Variance goes into ICA with reduced rank
-% 15: save Data after ICA
+% [EEG,locFile] = UiO_trials(data_struct,subj_name,EEG,locFile)
 % 
-%%
+% data_struct: structure of the csv-file specified for subject and
+%               experiment
+% EEG: EEG structure of previous function. If empty [] this function will
+%       load the last processed data (if availeble)
+% subj_name: subject name according to csvfile
+% locFile: locFile of previous function. If empty [] this function will
+%       load the last processed locFile (if availeble)
+%
+% This function will epoch the continous data into trials and remove bad
+% 
+% by questions: benjamin.thuerer@kit.edu
+% 
 function [EEG,locFile] = UiO_trials(data_struct,subj_name,EEG,locFile)
 
 if nargin < 2
     error('provide at least data_struct and subject name. See help UiO_trials')
 end
 
-% check if EEG structure is provided. If not, load preprocessed data
+exist data_struct.load_data;
+
+if ans == 0
+    data_struct.load_data = '0';
+end
+
+% check if EEG structure is provided. If not, load previous data
 if isempty(EEG)
-    [EEG,locFile] = UiO_load_data(data_struct,subj_name);
+    if str2double(data_struct.load_data) == 0
+        [EEG,locFile] = UiO_load_data(data_struct,subj_name,'after_pca');   
+    else
+        [EEG,locFile] = UiO_load_data(data_struct,subj_name,[],'specific_data');
+    end
 end
   
 % epoch data to trials (EEG*times*trials)
@@ -97,51 +104,15 @@ else
     warning('trial rejection is not accuratly provided in csvfile. Rejection is done automatically')
 end
     
-    
+% store rejected trials in the structure
 EEG.accBadEpochs = [];
-EEG.accBadEpochs = find(EEG.reject.rejthresh); %store rejected trials
+EEG.accBadEpochs = find(EEG.reject.rejthresh);
+
+% loc file entry
+locFile{end+1} = {'epoched',['epoched data from ' data_struct.trial_start 'to ' data_struct.trial_end 'ms. ' ...
+    num2str(EEG.accBadEpochs) ' trials are rejected by ' data_struct.trial_rejection ' ' ...
+    '(0 = visual inspection; 1 = automatically)']};
 
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% this function will load, if EEG not provided, the relevant file and loc
-% paths + names to load these data for subsequent processing.
-function [EEG,LOCF] = UiO_load_data(data_struct,subj_name)
 
-% create file and loc name
-load_name = [subj_name{1} '_' data_struct.session '_preprocessed'];
-loc_name = [subj_name{1} '_' data_struct.session '_locFile'];
-
-% check if file_save path is provided and check for / or \
-if str2double(data_struct.save_folder) == 0
-    if isempty(strfind(data_struct.vhdrsource,'\'))
-        char_idx = strfind(data_struct.vhdrsource,'/'); 
-    else
-        char_idx = strfind(data_struct.vhdrsource,'\');
-    end
-    data_path = data_struct.vhdrsource(1:char_idx(end));
-    load_file = [data_path  load_name];
-    load_loc = [data_path loc_name];
-else
-    % if save_folder path provided, check if / or \ is used
-    subfolder1 = subj_name{1};
-    subfolder2 = data_struct.session;
-    
-    if isempty(strfind(data_struct.save_folder,'\'))
-        load_folder2 = [data_struct.save_folder '/' subfolder1 '/' subfolder2];
-        load_file = [load_folder2 '/' load_name];
-        load_loc = [load_folder2 '/' loc_name]; 
-    else
-        load_folder2 = [data_struct.save_folder '\' subfolder1 '\' subfolder2];
-        load_file = [load_folder2 '\' load_name];
-        load_loc = [load_folder2 '\' loc_name];
-    end    
-end
-
-load([load_file '.mat']);
-load([load_loc '.mat']);
-
-EEG.data = double(EEG.data);
-LOCF = locFile;
-
-end

@@ -9,7 +9,7 @@
 % EEG: EEG structure of previous function.
 % locFile: locFile of previous function.
 % 
-% This function will save the eeg file and the loc file as .mat in the raw
+% This function will save the eeg file (.mat) and the loc file (.txt) in the raw
 % data folder (if save_folder: 0 ) or in the provided folder path
 % (save_folder)
 % 
@@ -74,9 +74,11 @@ else
     end    
 end
 
-EEG.data = single(EEG.data);
+disp(['save file: ' save_name]);
+% EEG.data = single(EEG.data);
 save([save_file '.mat'],'EEG','-v7.3');
 save([save_loc '.mat'],'locFile');
 
+pause(0.5)
 
 end
