@@ -232,6 +232,9 @@ while i >= 99.99
     Thresh = meanB+k*stdB; 
     SA = abs(Average)>abs(repmat(Thresh,1,size(EEG.data,2)));
     i = sum(sum(SA(:,ind_zero:end)))/sum(SA(:))*100;
+    if isnan(i)
+        i = 100;
+    end
     k = k-0.01;    
     A(m) = sum(sum(SA(:,ind_zero:ind_zero+(0.35/time_ind))))/numel(SA(:,ind_zero:ind_zero+(0.35/time_ind)))*100;
     if find(ceil(A(m))==t)
