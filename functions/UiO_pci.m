@@ -25,12 +25,6 @@ if nargin < 2
     error('provide at least data_struct and subject name. See help UiO_pca')
 end
 
-exist data_struct.load_data;
-
-if ans == 0
-    data_struct.load_data = '0';
-end
-
 % check if EEG structure is provided. If not, load previous data
 if isempty(EEG)
     if str2double(data_struct.load_data) == 0

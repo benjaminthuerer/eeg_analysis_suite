@@ -24,11 +24,6 @@ if nargin < 2
     error('provide at least data_struct and subject name. See help UiO_pca')
 end
 
-exist data_struct.load_data;
-
-if ans == 0
-    data_struct.load_data = '0';
-end
 
 % check if EEG structure is provided. If not, load previous data
 if isempty(EEG)
@@ -50,8 +45,6 @@ else
     EEG = pop_runica(EEG,'extended',1,'interupt','on');
 end
 
-% convert data back to single precision to save disc space
-EEG.data = single(EEG.data);
 
 % loc file entry
 locFile{end+1} = {'after_ica',['Independent components are computed and stored in the EEG struct']};

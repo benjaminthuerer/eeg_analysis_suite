@@ -22,16 +22,11 @@ if nargin < 2
     error('provide at least data_struct and subject name. See help UiO_pca')
 end
 
-exist data_struct.load_data;
-
-if ans == 0
-    data_struct.load_data = '0';
-end
 
 % check if EEG structure is provided. If not, load previous data
 if isempty(EEG)
     if str2double(data_struct.load_data) == 0
-        [EEG,locFile] = UiO_load_data(data_struct,subj_name,'preprocessed');   
+        [EEG,locFile] = UiO_load_data(data_struct,subj_name,'epoched');   
     else
         [EEG,locFile] = UiO_load_data(data_struct,subj_name,[],'specific_data');
     end
@@ -53,12 +48,12 @@ VecData = VecData(:,end:-1:1); %eigenvectors
 ValData = diag(ValData);
 ValData = ValData(end:-1:1); %eigenvalues
 
-% decompress to 99% of the variance
+% decompress to 99.9% of the variance
 perVar = ones(1,size(ValData,1));
 for k = 1:size(ValData,1)
     perVar(k) = (sum(ValData(1:k))/sum(ValData(:)))*100;
 end
-lastPC = find(diff(perVar > 99))+1;
+lastPC = find(diff(perVar > 99.9))+1;
 EEG.lastPC = lastPC;
 
 % keep the 99% components and multiply them with the original data
@@ -71,9 +66,6 @@ if ndims(EEG.data) == 3
 end
 
 EEG.data = postCompData;
-
-% convert to single data to save disc space
-EEG.data = single(EEG.data);
 
 % loc file entry
 locFile{end+1} = {'after_pca',['data is compressed to principal components which explain ' ...

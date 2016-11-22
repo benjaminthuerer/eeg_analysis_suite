@@ -31,11 +31,6 @@ if nargin < 1
     error('provide at least data_struct. See help UiO_preprocessing')
 end
 
-exist data_struct.load_data;
-
-if ans == 0
-    data_struct.load_data = '0';
-end
 
 % check if EEG structure is provided. If not, load raw data
 if isempty(EEG)
@@ -77,6 +72,8 @@ RField2 = strcmp({EEG.chanlocs.labels},'AF7'); %change AF7 to FCz
 EEG.chanlocs(RField1).labels = 'AFz';
 EEG.chanlocs(RField2).labels = 'FCz';
 
+
+
 % resample with mild anti-aliasing filter for possible connectivity analysis
 if ~isempty(Nsrate)
     EEG = pop_resample(EEG, Nsrate, 0.8, 0.4);
@@ -94,31 +91,58 @@ end
 EEG = pop_chanedit(EEG, 'lookup','standard_1005.elc');
 chLocs = EEG.chanlocs;
 
+% remove mean over channel
+EEG.data = bsxfun(@minus,EEG.data,mean(EEG.data,2));
+
 % check if cleaning and channel rejection should be done automatically
 % if yes, clean data using automatic subspace reconstruction (ASR)
 if str2double(data_struct.cleaning_artifacts) == 1
     if str2double(data_struct.channel_rejection) == 2
         % clean data without removing any channel or time-bins
-        EEG = clean_rawdata(EEG, 'off', 'off', 'off', 'off', BurstC, 'off');
+        EEG = clean_rawdata(EEG, 'off', [0.25 0.75], 'off', 'off', BurstC, 'off');
         
         % clean channels manually by visual inspection
         % epoch the data and compute the average over trials
         EEGN = pop_epoch( EEG, {  'R128'  }, [-1 1], 'newname', ' resampled epochs', 'epochinfo', 'yes');
-        [~,idx(1)] = min(abs(EEGN.times-(-1000)));
-        [~,idx(2)] = min(abs(EEGN.times-(1000)));
-        MElec = squeeze(mean(EEGN.data,3));
+        [~,idx(1)] = min(abs(EEGN.times-(-500)));
+        [~,idx(2)] = min(abs(EEGN.times-(500)));
         goodChan = [];
         badChan = [];
         
         % plot the average for each channel and distinguish between good
         % and bad channels according to the mouse / space click
-        for Ei = 1:size(MElec,1)
-            h = figure;
-            plot(EEGN.times(idx(1):idx(2)),MElec(Ei,idx(1):idx(2)));
-            title(['Channel ' int2str(Ei) ': press space to remove channel']);
+        for Ei = 1:size(EEGN.data,1)
+            CutTrial = squeeze(EEGN.data(Ei,:,:));
+        
+            multPl = 20;
+            n = 1:multPl:size(CutTrial,2)*multPl;
+            CutTrial = bsxfun(@plus,CutTrial,n);
+            trial_cut = size(CutTrial,2);
+
+            h = figure('units','normalized','position',[.1 .1 .8 .8]);
+            subplot(1,3,1); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),1:trial_cut/3),'color',[0,0,0]);
             grid
-            axis([-1000 1000 -15 15]);
-            ylabel('Amplitude (\muV)'); xlabel('Time (ms)');
+            title(['trials ' int2str(1) ' to ' int2str(trial_cut/3)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) -multPl n(trial_cut/3)+multPl]);
+            xlabel('Time (ms)')
+            
+            subplot(1,3,2); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),trial_cut/3+1:(trial_cut/3)*2),'color',[0,0,0]);
+            grid
+            title(['trials ' int2str(trial_cut/3+1) ' to ' int2str((trial_cut/3)*2)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) n(trial_cut/3) n((trial_cut/3)*2)+multPl]);
+            xlabel('Time (ms)')
+            
+            subplot(1,3,3); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),(trial_cut/3)*2+1:end),'color',[0,0,0]);
+            grid
+            title(['trials ' int2str((trial_cut/3)*2+1) ' to ' int2str(trial_cut)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) n((trial_cut/3)*2) n(end)+multPl]);
+            xlabel('Time (ms)')
+            suptitle({['channel ' int2str(Ei)] ; ...
+                ['if you want to change reject: press space; if you want to keep: mouse click']})
+            
             button = waitforbuttonpress;
             if button == 0
                 goodChan(end+1) = Ei;
@@ -130,19 +154,43 @@ if str2double(data_struct.cleaning_artifacts) == 1
         
         % plot the average for each channel again and show the actual
         % marking of the channel. Press space if you changed your mind
-        for Ei = 1:size(MElec,1)
+        for Ei = 1:size(EEGN.data,1)
             if find(goodChan==Ei)
                 Stigma = 'good';
             else
                 Stigma = 'bad';
             end
-            h = figure;
-            plot(EEGN.times(idx(1):idx(2)),MElec(Ei,idx(1):idx(2)));
-            title({['Channel ' int2str(Ei) ' marked as ' Stigma] ; ...
-                ['if you want to change the mark (regardless of direction g-->b; b-->g) press space']});
+            CutTrial = squeeze(EEGN.data(Ei,:,:));
+        
+            multPl = 20;
+            n = 1:multPl:size(CutTrial,2)*multPl;
+            CutTrial = bsxfun(@plus,CutTrial,n);
+            trial_cut = size(CutTrial,2);
+
+            h = figure('units','normalized','position',[.1 .1 .8 .8]);
+            subplot(1,3,1); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),1:trial_cut/3),'color',[0,0,0]);
             grid
-            axis([-1000 1000 -15 15]);
-            ylabel('Amplitude (\muV)'); xlabel('Time (ms)');
+            title(['trials ' int2str(1) ' to ' int2str(trial_cut/3)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) -multPl n(trial_cut/3)+multPl]);
+            xlabel('Time (ms)')
+            
+            subplot(1,3,2); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),trial_cut/3+1:(trial_cut/3)*2),'color',[0,0,0]);
+            grid
+            title(['trials ' int2str(trial_cut/3+1) ' to ' int2str((trial_cut/3)*2)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) n(trial_cut/3) n((trial_cut/3)*2)+multPl]);
+            xlabel('Time (ms)')
+            
+            subplot(1,3,3); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),(trial_cut/3)*2+1:end),'color',[0,0,0]);
+            grid
+            title(['trials ' int2str((trial_cut/3)*2+1) ' to ' int2str(trial_cut)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) n((trial_cut/3)*2) n(end)+multPl]);
+            xlabel('Time (ms)')
+            suptitle({['channel ' int2str(Ei) ' is marked as ' Stigma] ; ...
+                ['if you want to change the mark (regardless of direction g-->b; b-->g) press space']})
+            
             button = waitforbuttonpress;
             if button ~= 0
                 if find(badChan==Ei)
@@ -162,7 +210,7 @@ if str2double(data_struct.cleaning_artifacts) == 1
         EEG.chanlocs(:,badChan) = [];
     elseif str2double(data_struct.channel_rejection) == 1
         % clean the data but do not filter or remove time-bins
-        EEG = clean_rawdata(EEG, [], 'off', [], [], BurstC, 'off');       
+        EEG = clean_rawdata(EEG, [], [0.25 0.75], 0.88, [], BurstC, 'off');       
     else
         warning('no correct channel rejection type provided. default cleaning with channel rejection on')
     end
@@ -171,21 +219,45 @@ elseif str2double(data_struct.cleaning_artifacts) == 0
         % clean channel manually by visual inspection and do not clean data
         % epoch the data and compute the average over trials
         EEGN = pop_epoch( EEG, {  'R128'  }, [-1 1], 'newname', ' resampled epochs', 'epochinfo', 'yes');
-        [~,idx(1)] = min(abs(EEGN.times-(-1000)));
-        [~,idx(2)] = min(abs(EEGN.times-(1000)));
-        MElec = squeeze(mean(EEGN.data,3));
+        [~,idx(1)] = min(abs(EEGN.times-(-500)));
+        [~,idx(2)] = min(abs(EEGN.times-(500)));
         goodChan = [];
         badChan = [];
         
         % plot the average for each channel and distinguish between good
         % and bad channels according to the mouse / space click
-        for Ei = 1:size(MElec,1)
-            h = figure;
-            plot(EEGN.times(idx(1):idx(2)),MElec(Ei,idx(1):idx(2)));
-            title(['Channel ' int2str(Ei) ': click space to remove channel']);
+        for Ei = 1:size(EEGN.data,1)
+            CutTrial = squeeze(EEGN.data(Ei,:,:));
+        
+            multPl = 20;
+            n = 1:multPl:size(CutTrial,2)*multPl;
+            CutTrial = bsxfun(@plus,CutTrial,n);
+            trial_cut = size(CutTrial,2);
+
+            h = figure('units','normalized','position',[.1 .1 .8 .8]);
+            subplot(1,3,1); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),1:trial_cut/3),'color',[0,0,0]);
             grid
-            axis([-1000 1000 -15 15]);
-            ylabel('Amplitude (\muV)'); xlabel('Time (ms)');
+            title(['trials ' int2str(1) ' to ' int2str(trial_cut/3)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) -multPl n(trial_cut/3)+multPl]);
+            xlabel('Time (ms)')
+            
+            subplot(1,3,2); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),trial_cut/3+1:(trial_cut/3)*2),'color',[0,0,0]);
+            grid
+            title(['trials ' int2str(trial_cut/3+1) ' to ' int2str((trial_cut/3)*2)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) n(trial_cut/3) n((trial_cut/3)*2)+multPl]);
+            xlabel('Time (ms)')
+            
+            subplot(1,3,3); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),(trial_cut/3)*2+1:end),'color',[0,0,0]);
+            grid
+            title(['trials ' int2str((trial_cut/3)*2+1) ' to ' int2str(trial_cut)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) n((trial_cut/3)*2) n(end)+multPl]);
+            xlabel('Time (ms)')
+            suptitle({['channel ' int2str(Ei)] ; ...
+                ['if you want to change reject: press space; if you want to keep: mouse click']})
+            
             button = waitforbuttonpress;
             if button == 0
                 goodChan(end+1) = Ei;
@@ -197,19 +269,43 @@ elseif str2double(data_struct.cleaning_artifacts) == 0
         
         % plot the average for each channel again and show the actual
         % marking of the channel. Press space if you changed your mind
-        for Ei = 1:size(MElec,1)
+        for Ei = 1:size(EEGN.data,1)
             if find(goodChan==Ei)
                 Stigma = 'good';
             else
                 Stigma = 'bad';
             end
-            h = figure;
-            plot(EEGN.times(idx(1):idx(2)),MElec(Ei,idx(1):idx(2)));
-            title({['Channel ' int2str(Ei) ' marked as ' Stigma] ; ...
-                ['if you want to change the mark (regardless of direction g-->b; b-->g) click space']});
+            CutTrial = squeeze(EEGN.data(Ei,:,:));
+        
+            multPl = 20;
+            n = 1:multPl:size(CutTrial,2)*multPl;
+            CutTrial = bsxfun(@plus,CutTrial,n);
+            trial_cut = size(CutTrial,2);
+
+            h = figure('units','normalized','position',[.1 .1 .8 .8]);
+            subplot(1,3,1); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),1:trial_cut/3),'color',[0,0,0]);
             grid
-            axis([-1000 1000 -15 15]);
-            ylabel('Amplitude (\muV)'); xlabel('Time (ms)');
+            title(['trials ' int2str(1) ' to ' int2str(trial_cut/3)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) -multPl n(trial_cut/3)+multPl]);
+            xlabel('Time (ms)')
+            
+            subplot(1,3,2); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),trial_cut/3+1:(trial_cut/3)*2),'color',[0,0,0]);
+            grid
+            title(['trials ' int2str(trial_cut/3+1) ' to ' int2str((trial_cut/3)*2)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) n(trial_cut/3) n((trial_cut/3)*2)+multPl]);
+            xlabel('Time (ms)')
+            
+            subplot(1,3,3); plot(EEGN.times(idx(1):idx(2)),CutTrial(idx(1):idx(2),(trial_cut/3)*2+1:end),'color',[0,0,0]);
+            grid
+            title(['trials ' int2str((trial_cut/3)*2+1) ' to ' int2str(trial_cut)]);
+            set(gca,'YTick',[]);
+            axis([min(EEGN.times(idx(1):idx(2))) max(EEGN.times(idx(1):idx(2))) n((trial_cut/3)*2) n(end)+multPl]);
+            xlabel('Time (ms)')
+            suptitle({['channel ' int2str(Ei) ' is marked as ' Stigma] ; ...
+                ['if you want to change the mark (regardless of direction g-->b; b-->g) press space']})
+            
             button = waitforbuttonpress;
             if button ~= 0
                 if find(badChan==Ei)
@@ -251,9 +347,12 @@ elseif str2double(data_struct.re_referencing) == 1
     EEG.ref = 'average';
 end
 
+% remove mean over channel
+EEG.data = bsxfun(@minus,EEG.data,mean(EEG.data,2));
+
 % correct data for line noise without notch-filter
-EEG = pop_cleanline(EEG, 'bandwidth',2,'chanlist',[1:EEG.trials] ,'computepower',0,'linefreqs',[LNFreq LNFreq*2],'normSpectrum',0,'p',0.01,'pad',2,'plotfigures' ...
-    ,0,'scanforlines',1,'sigtype','Channels','tau',100,'verb',1,'winsize',4,'winstep',1);
+EEG = pop_cleanline(EEG,'ChanCompIndices',[1:EEG.nbchan],'SignalType','Channels','computepower',0,'LineFrequencies',[LNFreq LNFreq*2],'normSpectrum',0,'p',0.01,'pad',2,'plotfigures' ...
+    ,0,'scanforlines',1,'tau',100,'verb',1,'winsize',4,'winstep',4);
  
 % loc file entry
 locFile{end+1} = {'preprocessed',['preprocessed with (sampling rate; ' ...

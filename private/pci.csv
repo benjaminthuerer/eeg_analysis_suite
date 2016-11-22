@@ -1,24 +1,24 @@
-Subjects;s101;;;;;;;;;;;;;;;;;Comments
-session;s1;;;;;;;;;;;;;;;;;
+Subjects;bjoern;;;;;;;;;;;;;;;;;Comments
+session;sd_manual;;;;;;;;;;;;;;;;;
 experiment;pci;;;;;;;;;;;;;;;;;
-age;20;;;;;;;;;;;;;;;;;
+age;0;;;;;;;;;;;;;;;;;
 sex;1;;;;;;;;;;;;;;;;;
-iq;100;;;;;;;;;;;;;;;;;
-load_data;;;;;;;;;;;;;;;;;;%% if you want to load a specific already saved .mat file state here the name (e.g. 's101_s1_after_pca.mat'
+iq;0;;;;;;;;;;;;;;;;;
+load_data;0;;;;;;;;;;;;;;;;;%% if you want to load a specific already saved .mat file state here the name (e.g. 's101_s1_after_pca.mat'
 save_folder;0;;;;;;;;;;;;;;;;;%% 0=save in the same folder as eeg-header file, else=save in the folder provided
-lftsource;C:\Users\Promotion\04_Studie-IV_PCI\Data\test_data\MRICor_COR__MRI_T1__103_20160817_0001_FEM_DATA.lft;;;;;;;;;;;;;;;;;%% lead field matrix file of MRI
-srfsource;C:\Users\Promotion\04_Studie-IV_PCI\Data\test_data\MRISeg_MRI_T1_FEM_DATA.srf;;;;;;;;;;;;;;;;;%% surface file of MRI
-locsource;C:\Users\Promotion\04_Studie-IV_PCI\Data\test_data\MRISeg_MRI_T1_FEM_DATA.loc;;;;;;;;;;;;;;;;;%% locations file of MRI
-vhdrsource;C:\Users\Promotion\04_Studie-IV_PCI\Data\test_data\103_20160906_0004_lpar.vhdr;;;;;;;;;;;;;;;;;
+lftsource;C:\Users\Promotion\04_Studie-IV_PCI\Data\Bjoern\MRICor_COR__MRI_T1_FEM_DATA.lft;;;;;;;;;;;;;;;;;%% lead field matrix file of MRI
+srfsource;;;;;;;;;;;;;;;;;;%% surface file of MRI
+locsource;;;;;;;;;;;;;;;;;;%% locations file of MRI
+vhdrsource;C:\Users\Promotion\04_Studie-IV_PCI\Data\Bjoern\101_20160909_0005.vhdr;;;;;;;;;;;;;;;;;
 UiO_TMS_correction;1;;;;;;;;;;;;;;;;;
 UiO_preprocessing;2;;;;;;;;;;;;;;;;;
 UiO_trials;4;;;;;;;;;;;;;;;;;
-UiO_pca;5;;;;;;;;;;;;;;;;;
-UiO_ica;6;;;;;;;;;;;;;;;;;
-UiO_ica_cleaning;8;;;;;;;;;;;;;;;;;
-UiO_inverse_model;10;;;;;;;;;;;;;;;;;
-UiO_pci;11;;;;;;;;;;;;;;;;;
-UiO_save;3,7,9,12;;;;;;;;;;;;;;;;;%%if you want to run a function several times, just add the indices after a comma
+UiO_pca;6;;;;;;;;;;;;;;;;;
+UiO_ica;7;;;;;;;;;;;;;;;;;
+UiO_ica_cleaning;0;;;;;;;;;;;;;;;;;
+UiO_inverse_model;0;;;;;;;;;;;;;;;;;
+UiO_pci;0;;;;;;;;;;;;;;;;;
+UiO_save;3,5,8;;;;;;;;;;;;;;;;;%%if you want to run a function several times, just add the indices after a comma
 UiO_plot;0;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;
@@ -41,16 +41,16 @@ interpolate_higher_tms;10;;;;;;;;;;;;;;;;;%interpolation higher end
 highpassfilter;1;;;;;;;;;;;;;;;;;%higphass filter in hz (bandpass edge. cut-off frequency is value - 0.5)
 lowpassfilter;80;;;;;;;;;;;;;;;;;%lowpassfilter in hz (bandpass edge. Cut-off frequency is value + 0.5)
 linenoise_frequency;50;;;;;;;;;;;;;;;;;%linenoise removal around hz
-trial_start;-1000;;;;;;;;;;;;;;;;;%start epoch in ms
-trial_end;1000;;;;;;;;;;;;;;;;;%end epoch in ms
-trial_threshold;500;;;;;;;;;;;;;;;;;%%if trial rejection automatic: rejection threshold in µV
+trial_start;-500;;;;;;;;;;;;;;;;;%start epoch in ms
+trial_end;500;;;;;;;;;;;;;;;;;%end epoch in ms
+trial_threshold;100;;;;;;;;;;;;;;;;;%%if trial rejection automatic: rejection threshold in µV
 re_referencing;1;;;;;;;;;;;;;;;;;%%0= nor re-referencing, 1 = avg reference, otherwise: it references to that channel (ex. FP1)
-correction_sensitivity;19;;;;;;;;;;;;;;;;;%%1=liberal, 100=very strict, 19=good choice
-baseline_sources;98;;;;;;;;;;;;;;;;;%%baseline length for inverse model and bootstraping
+correction_sensitivity;15;;;;;;;;;;;;;;;;;%%1=liberal, 100=very strict, 19=good choice
+baseline_sources;125;;;;;;;;;;;;;;;;;%%baseline length for inverse model and bootstraping
 downsample_source;1;;;;;;;;;;;;;;;;;%%how much do you want to downsample the sources
-downsample_pci_source;3;;;;;;;;;;;;;;;;;"%%how much downsample pci result in source domain (1: no downsampling, 2: every other
+downsample_pci_source;10;;;;;;;;;;;;;;;;;"%%how much downsample pci result in source domain (1: no downsampling, 2: every other
 point, 3: every third etc)"
-downsample_pci_time;3;;;;;;;;;;;;;;;;;"%%how much downsample pci result in time domain (1: no downsampling, 2: every other
+downsample_pci_time;1;;;;;;;;;;;;;;;;;"%%how much downsample pci result in time domain (1: no downsampling, 2: every other
 point, 3: every third etc)"
 plot_always;0;;;;;;;;;;;;;;;;;%%1=plots data after every processing step, 0 = no plotting, if UiO_plot = 1 you should provide here at which state you want to plot your already saved data ('after_tms', 'preprocessed', 'after_pca', 'after_ica', 'ica_cleaned', 'after_inverse_model', 'after_pci')
 ;;;;;;;;;;;;;;;;;;
@@ -58,6 +58,6 @@ plot_always;0;;;;;;;;;;;;;;;;;%%1=plots data after every processing step, 0 = no
 %%Automatic_rejection_parameters%%;;;;;;;;;;;;;;;;;;
 tms_interpolation;2;;;;;;;;;;;;;;;;;%%1=automatic,2=manual by inspection,3=manual by csv-input
 cleaning_artifacts;1;;;;;;;;;;;;;;;;;%%1=automatic by using clean_rawdata, 0=no cleaning
-channel_rejection;1;;;;;;;;;;;;;;;;;%%1=automatic by using clean_rawdata, 2=manual by visual inspection, 0=no channel rejection
-trial_rejection;1;;;;;;;;;;;;;;;;;%%1=automatic by threshold parameter (above), 2=manual by visual inspection
+channel_rejection;2;;;;;;;;;;;;;;;;;%%1=automatic by using clean_rawdata, 2=manual by visual inspection, 0=no channel rejection
+trial_rejection;2;;;;;;;;;;;;;;;;;%%1=automatic by threshold parameter (above), 2=manual by visual inspection
 ica_rejection;2;;;;;;;;;;;;;;;;;%%1=automatic using ADJUST, 2=manually by inspection

@@ -24,11 +24,6 @@ if nargin < 2
     error('provide at least data_struct and subject name. See help UiO_pca')
 end
 
-exist data_struct.load_data;
-
-if ans == 0
-    data_struct.load_data = '0';
-end
 
 % check if EEG structure is provided. If not, load previous data
 if isempty(EEG)
@@ -38,9 +33,6 @@ if isempty(EEG)
         [EEG,locFile] = UiO_load_data(data_struct,subj_name,[],'specific_data');
     end
 end
-
-% convert data back to double
-EEG.data = double(EEG.data);
 
 % if eeglab_options not saving properly, icaact might be deleted. This must
 % be reconstructed now
@@ -110,11 +102,14 @@ elseif str2double(data_struct.ica_rejection) == 2
             title('ERP response');
             ylabel('Arbitrary Units'); xlabel('ms');
 
-            % 2: power spectra from 0 to 100 hz
+            % 2: power spectra from 0 to 60 hz
             icasmthg = (EEG.icaweights(Ci,:)*EEG.icasphere)*reshape(EEG.data(EEG.icachansind,:,:), length(EEG.icachansind), EEG.trials*EEG.pnts); 
             [spectra,freq] = spectopo( icasmthg, EEG.pnts, EEG.srate, 'mapnorm', EEG.icawinv(:,Ci), 'plot','off');
+            freq = freq';
             [~,idx_f] = min(abs(freq-60));
-            subplot(2,2,2),plot(freq(1:idx_f),spectra(1:idx_f),'LineWidth',2),axis([0 60 min(spectra(1:idx_f))-1 max(spectra(1:idx_f))+1]);
+            spectra = 10*log10(spectra./freq);
+            subplot(2,2,2),plot(freq(1:idx_f)',spectra(1:idx_f),'LineWidth',2),axis([0 60 min(real(spectra(1:idx_f))) max(real(spectra(1:idx_f)))]);
+            ylabel('dezibel'); xlabel('frequency');
             title('power spectra');
 
             % 3: single trial values from -500 to 500ms
@@ -195,7 +190,6 @@ EEG.icaweights  = EEG.icaweights(goodICs,:);
 EEG.specicaact  = [];
 EEG.specdata    = [];
 EEG.reject      = [];
-EEG.data = single(EEG.data);
 
 % remove EOG channels if exist
 if find(strcmp({EEG.chanlocs.labels},'HEOG'))

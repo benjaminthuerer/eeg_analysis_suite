@@ -23,11 +23,6 @@ if nargin < 1
     error('provide at least data_struct. See help UiO_TMS_correction')
 end
 
-exist data_struct.load_data;
-
-if ans == 0
-    data_struct.load_data = '0';
-end
 
 % check if EEG structure is provided. If not, load raw data
 if isempty(EEG)
@@ -101,6 +96,7 @@ if str2double(data_struct.tms_interpolation) == 1 % 1: automatic
     % store mean tms cut for locFile
     tms_cut_start = mean(CIdx(1,:),2);
     tms_cut_end = mean(CIdx(2,:),2);
+    disp(['TMS-artifact corrected between: ' num2str(tms_cut_start) ' and ' num2str(tms_cut_end) ' ms (mean over trials)']);
 elseif str2double(data_struct.tms_interpolation) == 2 % 2: manually by visual inspection
     % epoch data
     EEGN = pop_epoch( EEG, {  'R128'  }, [-1 0.1], 'newname', ' resampled epochs', 'epochinfo', 'yes');
@@ -118,7 +114,7 @@ elseif str2double(data_struct.tms_interpolation) == 2 % 2: manually by visual in
     plot(EEGN.times(idx(1):idx(2)),GAMean(idx(1):idx(2)));
     axis([-5 15 -50 50])
     title('Grand Average: please click where the TMS-artifact starts (1. click) and ends (2. click)')
-    [x_I,~] =ginput(2);
+    [x_I,~] = ginput(2);
     close(h)
     
     % use the x-coordinates of the mous clicks and find their indices
@@ -142,6 +138,7 @@ elseif str2double(data_struct.tms_interpolation) == 2 % 2: manually by visual in
     % store mean tms cut for locFile
     tms_cut_start = x_I(1);
     tms_cut_end = x_I(2);
+    disp(['TMS-artifact corrected between: ' num2str(tms_cut_start) ' and ' num2str(tms_cut_end) ' ms']);
 elseif str2double(data_struct.tms_interpolation) == 3 % 3: manually by csv-file
     % transform csv time indices
     idx(1) = str2double(data_struct.interpolate_lower_tms)/EEG.srate;
@@ -164,13 +161,14 @@ elseif str2double(data_struct.tms_interpolation) == 3 % 3: manually by csv-file
     % store mean tms cut for locFile
     tms_cut_start = data_struct.interpolate_lower_tms;
     tms_cut_end = data_struct.interpolate_higher_tms;
+    disp(['TMS-artifact corrected between: ' num2str(tms_cut_start) ' and ' num2str(tms_cut_end) ' ms']);
 else
     error('TMS interpolation correction not defined')
 end
    
 locFile{end+1} = {'after_tms',['EEG data is now TMS-artifact correctet using ' ...
     data_struct.tms_interpolation ' (1=automatic, 2=by visual inspection, 3=manually by csvfile).' ...
-    ' Artifact is cutted between ' tms_cut_start ' and ' tms_cut_start ' ms.']};
+    ' Artifact is cutted between ' num2str(tms_cut_start) ' and ' num2str(tms_cut_start) ' ms.']};
 
 if str2double(data_struct.plot_always)==1
     UiO_plots(data_struct,subj_name,EEG,locFile);

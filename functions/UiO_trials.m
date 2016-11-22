@@ -21,16 +21,11 @@ if nargin < 2
     error('provide at least data_struct and subject name. See help UiO_trials')
 end
 
-exist data_struct.load_data;
-
-if ans == 0
-    data_struct.load_data = '0';
-end
 
 % check if EEG structure is provided. If not, load previous data
 if isempty(EEG)
     if str2double(data_struct.load_data) == 0
-        [EEG,locFile] = UiO_load_data(data_struct,subj_name,'after_pca');   
+        [EEG,locFile] = UiO_load_data(data_struct,subj_name,'preprocessed');   
     else
         [EEG,locFile] = UiO_load_data(data_struct,subj_name,[],'specific_data');
     end
@@ -40,11 +35,14 @@ end
 EEG = pop_epoch( EEG, {  'R128'  }, [str2double(data_struct.trial_start)/EEG.srate str2double(data_struct.trial_end)/EEG.srate] ...
     , 'newname', ' resampled epochs', 'epochinfo', 'yes');
 
+% remove mean over channel
+EEG.data = bsxfun(@minus,EEG.data,mean(EEG.data,2));
+
 %remove bad epochs either automized (1) or by inspection (2)
 if str2double(data_struct.trial_rejection) == 1
     EEG = pop_eegthresh(EEG,1,[1:EEG.nbchan-2],-str2double(data_struct.trial_threshold),str2double(data_struct.trial_threshold),EEG.times(1)/1000,EEG.times(end)/1000,0,1);
+    EEG.accBadEpochs = find(EEG.reject.rejthresh);
 elseif str2double(data_struct.trial_rejection) == 2
-    MElec = squeeze(mean(EEG.data,1));
     [~,idx(1)] = min(abs(EEG.times-(-500)));
     [~,idx(2)] = min(abs(EEG.times-(500)));
     
@@ -53,13 +51,24 @@ elseif str2double(data_struct.trial_rejection) == 2
 
     % plot the average over channels for each trial and distinguish between good
     % and bad trials according to the mouse / space click
-    for Ei = 1:size(MElec,2)
-        h = figure;
-        plot(EEG.times(idx(1):idx(2)),MElec(idx(1):idx(2),Ei));
-        title(['Trial ' int2str(Ei) ': press space to remove trial']);
+    for Ei = 1:size(EEG.data,3)
+        CutTrial = squeeze(EEG.data(:,:,Ei));
+        
+        multPl = 10;
+        n = 1:multPl:size(CutTrial,1)*multPl;
+        n = n';
+        CutTrial = bsxfun(@plus,CutTrial,n);
+        
+        h = figure('units','normalized','position',[.1 .1 .8 .8]);
+        plot(EEG.times(idx(1):idx(2)),CutTrial(:,idx(1):idx(2)),'color',[0,0,0]);
         grid
-        axis([-500 500 -15 15]);
-        ylabel('Amplitude (\muV)'); xlabel('Time (ms)');
+        title({['Trial ' int2str(Ei)] ; ...
+            ['if you want to change reject: press space; if you want to keep: mouse click']});
+        set(gca,'YTick',[]);
+        axis([min(EEG.times(idx(1):idx(2))) max(EEG.times(idx(1):idx(2))) -multPl n(end)+multPl]);
+        xlabel('Time (ms)')
+        
+        [~,~,but_exit] = ginput(1);
         button = waitforbuttonpress;
         if button == 0
             goodTrial(end+1) = Ei;
@@ -71,19 +80,29 @@ elseif str2double(data_struct.trial_rejection) == 2
 
     % plot the average for each trial again and show the actual
     % marking of the trial. Press space if you changed your mind
-    for Ei = 1:size(MElec,2)
+    for Ei = 1:size(EEG.data,3)
         if find(goodTrial==Ei)
             Stigma = 'good';
         else
             Stigma = 'bad';
         end
-        h = figure;
-        plot(EEG.times(idx(1):idx(2)),MElec(idx(1):idx(2),Ei));
+        
+        CutTrial = squeeze(EEG.data(:,:,Ei));
+        
+        multPl = 10;
+        n = 1:multPl:size(CutTrial,1)*multPl;
+        n = n';
+        CutTrial = bsxfun(@plus,CutTrial,n);
+        
+        h = figure('units','normalized','position',[.1 .1 .8 .8]);
+        plot(EEG.times(idx(1):idx(2)),CutTrial(:,idx(1):idx(2)),'color',[0,0,0]);
+        grid
         title({['Trial ' int2str(Ei) ' marked as ' Stigma] ; ...
             ['if you want to change the mark (regardless of direction g-->b; b-->g) press space']});
-        grid
-        axis([-500 500 -15 15]);
-        ylabel('Amplitude (\muV)'); xlabel('Time (ms)');
+        set(gca,'YTick',[]);
+        axis([min(EEG.times(idx(1):idx(2))) max(EEG.times(idx(1):idx(2))) -multPl n(end)+multPl]);
+        xlabel('Time (ms)');
+        
         button = waitforbuttonpress;
         if button ~= 0
             if find(badTrial==Ei)
@@ -98,15 +117,14 @@ elseif str2double(data_struct.trial_rejection) == 2
 
     % sort bad trials and remove bad trials from the dataset
     badTrial = sort(badTrial);
-    EEG.nbchan = EEG.nbchan-length(badChan);
-    EEG.data(badChan,:) = [];
+    EEG.data(:,:,badTrial) = [];
+    EEG.epoch(badTrial) = [];
+    EEG.accBadEpochs = badTrial;
 else
     warning('trial rejection is not accuratly provided in csvfile. Rejection is done automatically')
 end
     
-% store rejected trials in the structure
-EEG.accBadEpochs = [];
-EEG.accBadEpochs = find(EEG.reject.rejthresh);
+disp([ num2str(length(EEG.accBadEpochs)) ' Trials rejected.']);
 
 % loc file entry
 locFile{end+1} = {'epoched',['epoched data from ' data_struct.trial_start 'to ' data_struct.trial_end 'ms. ' ...
